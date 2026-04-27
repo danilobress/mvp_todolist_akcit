@@ -1,0 +1,28 @@
+graph TD
+    %% Estilos de Alto Contraste (Dark Mode Feel)
+    classDef api fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff,rx:8,ry:8
+    classDef service fill:#16a34a,stroke:#15803d,stroke-width:2px,color:#fff,rx:8,ry:8
+    classDef repo fill:#d97706,stroke:#b45309,stroke-width:2px,color:#fff
+    classDef ai fill:#9333ea,stroke:#7e22ce,stroke-width:2px,color:#fff,rx:15,ry:15
+    classDef client fill:#334155,stroke:#1e293b,stroke-width:2px,color:#fff,rx:20,ry:20
+
+    Client([📱 Cliente HTTP / Consumidor]):::client
+
+    subgraph Backend [Backend MVP - FastAPI]
+        API[🌐 API Controller<br/>FastAPI / main.py]:::api
+        TaskService{{⚙️ TaskService<br/>Regras de Negócio}}:::service
+        TaskRepository[(🗄️ TaskRepository<br/>Acesso a Dados)]:::repo
+        PriorityAdvisor([🧠 PriorityAdvisor<br/>IA Externa]):::ai
+
+        %% Fluxo de Orquestração Interna
+        API == "Injeta Dependências (Depends)<br/>e Delega" ==> TaskService
+        TaskService -- "Persiste / Consulta" --> TaskRepository
+        TaskService -. "Solicita sugestão via HTTP" .-> PriorityAdvisor
+    end
+
+    %% Fluxo de Requisições Externas
+    Client -- "GET /health" --> API
+    Client -- "GET, POST, PATCH, DELETE<br/>/tasks" --> API
+
+    %% Estilo do quadro do Backend
+    style Backend fill:#0f172a,stroke:#334155,stroke-width:2px,color:#cbd5e1,stroke-dasharray: 5 5

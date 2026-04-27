@@ -1,0 +1,62 @@
+graph TD
+    %% Custom Styling
+    classDef client fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff,rx:10,ry:10;
+    classDef backend fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff,rx:5,ry:5;
+    classDef database fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff;
+    classDef schema fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff,stroke-dasharray: 5 5;
+    classDef orm fill:#fb923c,stroke:#c2410c,stroke-width:2px,color:#fff;
+    classDef ai fill:#ec4899,stroke:#be185d,stroke-width:2px,color:#fff,rx:10,ry:10;
+
+    %% Client Layer (Substituindo o React SPA)
+    Client([HTTP Client - curl / Postman / TestClient])
+
+    %% Backend Layer
+    subgraph BE [Backend - FastAPI]
+        Schema[/Pydantic Schemas - Validação de DTO/]
+        Router{Routers / Controllers - API Endpoints}
+        Service[[Services - Business Logic]]
+        Repo[(Repositories - Data Access)]
+        ORM_Models[SQLAlchemy Models / Camada ORM]
+    end
+
+    %% External Services Layer
+    subgraph EXT [External Services]
+        AI([PriorityAdvisor AI])
+    end
+
+    %% Persistence Layer
+    subgraph DB [Persistence Layer]
+        SQLite[(SQLite - tasks.db)]
+    end
+
+    %% Apply Styles
+    class Client client;
+    class Router,Service,Repo backend;
+    class SQLite database;
+    class Schema schema;
+    class ORM_Models orm;
+    class AI ai;
+
+    %% Request Flow (Solid lines)
+    Client -- "HTTP REST (JSON Request)" --> Schema 
+    Schema -- "Objeto validado (DTO)" --> Router 
+    Router -- "chama" --> Service
+    
+    %% AI Integration Flow
+    Service -- "solicita prioridade" --> AI
+    AI -. "sugestão de prioridade" .-> Service 
+    
+    Service -- "chama" --> Repo
+    Repo -- "usa ORM" --> ORM_Models 
+    ORM_Models -- "Executa SQL" --> SQLite
+
+    %% Response Flow (Dashed lines)
+    SQLite -. "Raw Data" .-> ORM_Models
+    ORM_Models -. "Objetos SQLAlchemy" .-> Repo
+    Repo -. "Schemas Pydantic (DTO)" .-> Service
+    Service -. "Modelos de Negócio/DTO" .-> Router
+    Router -. "JSON Response (via Pydantic)" .-> Client 
+
+    %% Legend / Note
+    Note[Request Flow: Solid Line<br/>Response Flow: Dashed Line]
+    style Note fill:#fff,stroke:#333,stroke-dasharray: 5 5
