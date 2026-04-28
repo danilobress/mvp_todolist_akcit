@@ -151,3 +151,91 @@ Público: Desenvolvedores Backend e Engenheiros de QA que consumirão este arqui
 Resposta: Crie o arquivo app/main.py com o código Python. Não inclua textos introdutórios ou explicações externas ao código.
 Tipagem da Resposta: Utilize o Pydantic para criar um modelo de dados (HealthCheckResponse) que garanta o contrato de saída do endpoint /health, retornando o status (string) e o timestamp (utilizando fuso horário UTC real).
 ```
+
+## Modelagem de Dados
+
+```
+Atue como um Engenheiro Backend Sênior especialista em Python.
+Contexto: Estamos na Release 1 do MVP de um Gerenciador de Tarefas construído com FastAPI. A arquitetura exige estrita separação entre a persistência (ORM) e validação de contratos (DTOs).
+Objetivo: Criar os modelos e schemas essenciais para a entidade `Task`.
+1. Em `app/models/task.py`: Crie o modelo do SQLAlchemy. Campos obrigatórios: id (PK, inteiro gerado pelo banco autoincrement), title (string, obrigatório), description (string, opcional), is_completed (booleano, default false), priority (string, default "Média").
+2. Em `app/schemas/task.py`: Crie os schemas Pydantic: `TaskCreate` (entrada: apenas title e description, sem os campos de default como is_completed ou priority), `TaskUpdate` (entrada: permitir apenas a atualização do campo `is_completed` como opcional) e `TaskResponse` (saída: todos os campos, incluindo id).
+Estilo: Código robusto, utilizando as extensões modernas do SQLAlchemy (Mapped e mapped_column) e do Pydantic (ConfigDict para model_config = {'from_attributes': True}).
+Tom: Técnico e imperativo.
+Público: Desenvolvedores da equipe de backend e o banco de dados local.
+Resposta: Criei os arquivos com os códigos solicitados.
+Restrições: Utilize apenas as bibliotecas nativas e a stack já estabelecida. O id não deve ser incluído nos schemas de Create e Update, apenas no Response.
+```
+
+## Acesso a Dados - Repository
+
+```
+Atue como um Especialista em Bancos de Dados e Desenvolvedor Python.
+Contexto: Release 1 do MVP de Gerenciamento de Tarefas. Você deve implementar o padrão Repository para abstrair o acesso ao SQLite utilizando OBRIGATORIAMENTE o driver `aiosqlite` de forma completamente assíncrona.
+Objetivo: Crie o arquivo `app/repositories/task_repository.py`. Este arquivo deve conter a classe `TaskRepository` que orquestra a sessão do banco (AsyncSession).
+Implemente os seguintes métodos assíncronos:
+- `create_task(task_data: TaskCreate, initial_priority: str = "Média") -> TaskResponse`
+- `get_task(task_id: int) -> TaskResponse`
+- `get_tasks(is_completed: bool = None, priority: str = None) -> list[TaskResponse]` (com construção dinâmica de query)
+- `update_task(task_id: int, update_data: dict) -> TaskResponse`
+- `update_task_priority(task_id: int, priority: str) -> None`
+- `delete_task(task_id: int) -> bool`
+Estilo: Aderente à PEP 8, com type hints estritos. O Repository deve receber a sessão (`AsyncSession`) no seu inicializador (Dependency Injection).
+Tom: Pragmático e orientado à performance de concorrência local.
+Público: O TaskService que consumirá esta classe, alheio aos detalhes de SQL.
+Resposta: Crie o arquivo `app/repositories/task_repository.py` com o código Python.
+Restrições: Para respeitar o RNF01, os métodos do repositório devem receber Pydantic e OBRIGATORIAMENTE retornar os schemas Pydantic (DTOs limpos). Nunca permita que instâncias ou objetos do SQLAlchemy "vazem" como retorno do Repository. Faça o mapping internamente de Entidade SQLAlchemy para `TaskResponse`. Lance `NoResultFound` ou devolva nulo para IDs não encontrados.
+```
+
+## PriorityAdvisor (IA Externa)
+
+```
+Atue como um Especialista em Integrações e Microsserviços baseados em IA.
+Contexto: O backend FastAPI precisa consumir um serviço de IA (PriorityAdvisor) capaz de analisar o título e a descrição de uma tarefa para inferir a sua prioridade (Alta, Média ou Baixa). O sistema se conectará com uma API de LLM real (ex: OpenAI, Anthropic ou modelo local).
+Objetivo: Crie o arquivo `app/services/priority_advisor.py` contendo a classe `PriorityAdvisorClient`.
+O cliente deve ser instanciado via DI injetando o objeto `httpx.AsyncClient` e conter o método `suggest_priority(title: str, description: str) -> str`.
+O cliente deve ser estruturado para consumir um endpoint de LLM. Você deve carregar a URL da API e a respectiva CHAVE DE API (API Key) a partir das variáveis de ambiente (`os.getenv`), nunca chumbando credenciais no código.
+Crie um payload JSON robusto de prompt de sistema (System Prompt) instruindo o modelo a devolver estritamente uma única palavra ("Alta", "Média" ou "Baixa") como resposta.
+O cliente deve ter um timeout rigoroso configurado (ex: 2 a 3 segundos) para evitar travamento da API local e prever blocos try/except para `httpx.RequestError` e `httpx.TimeoutException`.
+Em caso de falha de conexão, timeout, erro de autenticação (401/403) ou se o modelo "alucinar" e não retornar uma das 3 palavras válidas, a função deve aplicar um "fallback silencioso", devolvendo imediatamente a prioridade padrão "Média".
+Estilo: Código em Python moderno, assíncrono e muito defensivo contra indisponibilidade de rede e anomalias de LLMs. Utilize docstrings.
+Tom: Profissional, robusto e focado em resiliência (fail-safe) e segurança de credenciais.
+Público: O TaskService que usará esta classe.
+Resposta: Criei o arquivo `app/services/priority_advisor.py` com o código Python.
+Restrições: Cumpra as regras de injeção estrita do httpx, não faça hardcode de API Keys, lide defensivamente com a resposta em texto do LLM (limpando espaços/pontuação) e garanta o RNF05 de timeout/fallback.
+```
+
+## Service
+
+```
+Atue como um Engenheiro Backend especialista na camada de Lógica de Negócios (Business Logic).
+Contexto: MVP de Gerenciador de Tarefas, Release 1. O Service é o coração da API. Ele precisa receber as chamadas dos endpoints e orquestrar as validações usando o Repositório e o Cliente de IA.
+Objetivo: Crie o arquivo `app/services/task_services.py` com a classe `TaskService`.
+O Service deve usar Injeção de Dependência (DI) em seu construtor para receber instâncias estritas de `TaskRepository` e `PriorityAdvisorClient`.
+Implemente a lógica para delegar as funções CRUD ao Repositório.
+Atenção Especial (RF02 e Background Tasks): Na função `create_task`, aplique a prioridade padrão ("Média") na chamada de criação no Repositório. Após a persistência, use a dependência `FastAPI BackgroundTasks` (recebida nos argumentos do endpoint e passada pro service) para engatilhar a chamada ao `PriorityAdvisorClient` assincronamente e, por conseguinte, solicitar ao repositório que atualize a tarefa caso a IA devolva uma prioridade nova (usando fallback silencioso e mantendo "Média" se a IA falhar).
+Estilo: Python limpo. A camada de Service nunca vê as dependências HTTP do lado Web (Controller) nem strings SQL ou ORM (Repository).
+Tom: Decisivo, centrado nas regras de negócios e orquestração.
+Público: O controlador (Controller/Router) que consumirá o Service e instanciará a IA e o Repo via Depends do FastAPI.
+Resposta: Crie o arquivo de código em `app/services/task_services.py` com a implementação do `TaskService`.
+Restrições: Respeite os nomes das classes que você está importando (`TaskRepository` e `PriorityAdvisorClient`), garanta que o serviço utilize exclusivamente DTOs limpos do Pydantic (nunca objetos SQLAlchemy) e preveja o uso do `aiosqlite` no ecossistema global.
+```
+
+## Controller (Rotas da API)
+
+```
+Atue como um Especialista em FastAPI e Roteamento Web.
+Contexto: MVP de Gerenciador de Tarefas, Release 1. Já possuímos a camada de Service (`TaskService`), Repository (`TaskRepository`) e Schemas Pydantic construídos.
+Objetivo: Atualize o arquivo `app/main.py` (ou crie um `app/routers/tasks.py` e inclua no `main.py`). Adicione os endpoints REST na rota `/tasks` para as operações:
+- `POST /tasks` (Criação)
+- `GET /tasks` (Listagem com query parameters opcionais `is_completed` e `priority`)
+- `GET /tasks/{task_id}` (Busca pontual)
+- `PATCH /tasks/{task_id}` (Atualização estrita de `is_completed`)
+- `DELETE /tasks/{task_id}` (Exclusão)
+Estilo: Controladores EXTREMAMENTE finos. O Controller não deve conter regras de negócio, loops ou interações diretas com banco de dados. Ele deve apenas receber a requisição HTTP e injetar a dependência do Service via `Depends()` do FastAPI, repassando os DTOs.
+Tom: Pragmático, focado no contrato REST.
+Público: Consumidores da API (Frontend/QA).
+Resposta: Faça as atualizações no arquivo `app/main.py` do Controller.
+Restrições: Garanta a injeção do `TaskService` via `Depends()`. Utilize os códigos de status HTTP corretos no decorator da rota (ex: `status_code=201` para POST, `status_code=204` para DELETE). Ao instanciar as dependências para o Service, garanta o uso da sessão assíncrona (`AsyncSession`) no Repository.
+```o Repository.
+````
