@@ -7,7 +7,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.main import engine, async_session_maker
 from app.models.task import Base
-from app.schemas.task import TaskCreate, TaskUpdate
+from app.schemas.task import TaskCreate, TaskUpdate, TaskPriority
 from app.repositories.task_repository import TaskRepository
 from app.services.task_services import TaskService
 
@@ -57,14 +57,14 @@ async def seed_data():
             created_tasks = []
             for tarefa in tarefas_iniciais:
                 # Inserção direta via repositório para ignorar a execução da IA no ambiente de Seed
-                created_task = await repo.create_task(tarefa, initial_priority="Média")
+                created_task = await repo.create_task(tarefa, initial_priority=TaskPriority.MEDIA.value)
                 created_tasks.append(created_task)
                 print(f"Tarefa persistida: {created_task.title} (ID: {created_task.id}) - Prioridade: {created_task.priority}")
 
             # Marca a primeira tarefa como concluída para variedade de dados
             if created_tasks:
                 primeira_tarefa_id = created_tasks[0].id
-                await repo.update_task_status(primeira_tarefa_id, is_completed=True)
+                await repo.update_task(primeira_tarefa_id, {"is_completed": True})
                 print(f"-> Tarefa ID {primeira_tarefa_id} marcada como concluída.")
 
             print("Banco de dados populado com sucesso!")

@@ -237,5 +237,71 @@ Tom: Pragmático, focado no contrato REST.
 Público: Consumidores da API (Frontend/QA).
 Resposta: Faça as atualizações no arquivo `app/main.py` do Controller.
 Restrições: Garanta a injeção do `TaskService` via `Depends()`. Utilize os códigos de status HTTP corretos no decorator da rota (ex: `status_code=201` para POST, `status_code=204` para DELETE). Ao instanciar as dependências para o Service, garanta o uso da sessão assíncrona (`AsyncSession`) no Repository.
-```o Repository.
 ````
+
+# Testes Unitários, de Integração e Análise
+
+## Testes da Camada de Service (Unitário)
+
+```
+Atue como um Desenvolvedor Backend Python Sênior e Especialista em Qualidade de Engenharia (QA)
+Contexto: O CRUD do FastAPI está implementado em uma Clean Architecture. Precisamos testar isoladamente a camada de `Service`, que orquestra as regras de negócio e invoca o Repository e o PriorityAdvisor.
+Objetivo: Crie o arquivo `app/tests/test_services.py` focado estritamente em testes unitários. Você deve utilizar `unittest.mock` (`MagicMock` ou `AsyncMock`, conforme aplicável) para "mockar" completamente as dependências do `Service` (ou seja, simule o retorno do `Repository` e do `PriorityAdvisor`). O objetivo é validar unicamente se o `Service` processa os dados corretamente e se levanta exceções (ex: `HTTPException` 404) quando o Repository não encontra o ID.
+Estilo: Padrão AAA (Arrange, Act, Assert). Nomenclatura descritiva de testes (ex: `test_update_task_raises_404_when_id_not_found`).
+Tom: Rigoroso e focado em testes de componentes isolados.
+Público: Desenvolvedores e Engenheiros de Automação de Testes.
+Resposta: Crie o arquivo app/tests/test_services.py com código Python. Não inclua textos explicativos antes ou depois do código.
+Restrições: Não conecte ao banco de dados SQLite neste arquivo. Não force asserções para passarem artificialmente. O teste deve validar a implementação lógica real do Service. Se a lógica for falhar o teste, escreva o teste de forma coerente com o cenário de falha esperado. 
+Mentalidade TDD (Red → Green): Não olhe para a implementação existente para escrever os testes, escreva-os baseados nos contratos e requisitos de negócio esperados. É desejável que os testes falhem (Red) caso a implementação atual do Service não cubra todos os cenários de erro e borda.
+```
+
+## Testes do PriorityAdvisor (Unitário / Comportamental)
+
+```
+Atue como um Desenvolvedor Backend Python Sênior e Especialista em Qualidade de Engenharia (QA).
+Contexto:  Desenvolvemos o módulo `PriorityAdvisor`, uma função híbrida (assíncrona) que tenta consultar uma LLM via HTTP e possui um fallback seguro (heurística local por palavras-chave) caso a API externa falhe ou estoure o timeout.
+Objetivo: Crie o arquivo `app/tests/test_priority_advisor.py`. Você deve garantir cobertura para três cenários críticos:
+1. Sucesso: A chamada à LLM externa (mockada) retorna a prioridade.
+2. Heurística Local: A requisição externa não possui chave ou é ignorada, e uma palavra-chave no título (ex: "urgente") força o retorno "Alta".
+3. Timeout/Fallback: Simule um erro de `asyncio.TimeoutError` ou falha de rede na chamada externa e garanta que a função não levante erro, mas sim faça o fallback silencioso para a heurística local.
+
+Estilo: Padrão AAA. Utilize explicitamente bibliotecas de mock HTTP modernas como `respx` ou `pytest-httpx` para interceptar as requisições assíncronas no nível de transporte, garantindo que o teste seja estritamente unitário.
+Tom: Sistemático, validando resiliência e fail-safe.
+Público: Engenheiros de Integração e QA.
+Resposta: Crie o arquivo app/tests/test_priority_advisor.py com ódigo Python. Sem introduções textuais.
+Restrições: A execução do Pytest deve ser instantânea. Nenhuma chamada de rede real deve ser feita. Valide estritamente se o bloco `try-except` da implementação do PriorityAdvisor está segurando o erro como desenhado.
+**Mentalidade TDD (Red → Green):** Baseie as asserções de timeout e fallback estritamente no requisito de "falha segura" arquitetural. Se a implementação atual do `priority_advisor.py` não possuir um bloco `try-except` capturando `TimeoutError`, o teste **deve** ser escrito de forma que falhe (Red) ao rodar.
+```
+
+## Testes de Integração (API / Banco de Dados)
+
+```
+Atue como um Desenvolvedor Backend Python Sênior e Especialista em Qualidade de Engenharia (QA)
+Contexto: Precisamos validar os contratos HTTP da nossa API FastAPI e a persistência real dos dados ponta-a-ponta, sem mockar o Service ou o Repository, caracterizando um teste de integração verdadeiro.
+Objetivo: Desenvolva a suíte de testes de integração, composta por dois arquivos:
+1. `app/tests/conftest.py`: Configure o `TestClient` da FastAPI. Crie a configuração (engine/session) para um banco SQLite temporário em memória (`sqlite:///:memory:`) e utilize o recurso `app.dependency_overrides` para injetar este banco de testes no lugar do banco de produção.
+2. `app/tests/test_routers.py`: Consuma os endpoints via HTTP. Cubra fluxos de sucesso (criação 201, listagem 200, deleção 204) e trate de mapear erros de borda, especialmente `404 Not Found` e erros de validação Pydantic `422 Unprocessable Entity`. 
+
+Estilo: Padrão AAA. Cada função de teste deve refletir uma requisição HTTP real e a asserção do JSON e do Status Code retornado.
+Tom: Intolerante a falhas de contrato HTTP e persistência.
+Público: Analistas de QA que manterão a esteira de CI/CD.
+Resposta: Crie os arquivos app/tests/conftest.py e app/tests/test_routers.py com o código Python. Sem introduções textuais.
+Restrições: O banco em memória deve ser criado (metadata.create_all) e destruído/limpo a cada execução de teste para garantir o isolamento. Não force o teste a dar PASS. Valide o comportamento HTTP real que o código atual fornece. Se a lógica for falhar o teste, escreva o teste de forma coerente com o cenário de falha esperado. Atenção à Arquitetura: Como o `TaskService` recebe a fábrica de conexões (`session_maker`) diretamente do escopo global em `main.py` para as Background Tasks, você **deve fazer o override da dependência `get_task_service` por completo** (injetando nela o repositório de teste e o `session_maker` de teste) para garantir que a rotina em background não vaze e não grave dados no banco de produção físico.
+```
+
+## Testes de Repositório (Integração com Banco de Dados)
+
+```
+Atue como um Desenvolvedor Backend Sênior e Especialista em Qualidade de Engenharia (QA)
+Contexto: Arquitetura Python/FastAPI separa as responsabilidades em `models`, `repositories` e `services`. Precisamos testar exaustivamente a camada de acesso a dados, especificamente o arquivo `app/repositories/task_repository.py`. O objetivo é validar as queries do SQLAlchemy (inserções, atualizações e principalmente os filtros complexos) em um banco SQLite real, isolado da camada web (sem envolver o FastAPI).
+Objetivo: Crie o arquivo `app/tests/test_task_repository.py`. Desenvolva testes que cubram as operações CRUD da entidade `Task` no banco de dados. 
+Foque especialmente em testar a função de listagem (`get_tasks`), validando se os filtros opcionais de `is_completed` e `priority` (Alta, Média, Baixa) retornam os registros corretos quando combinados.
+Estilo: Padrão rigoroso AAA (Arrange, Act, Assert). Nomenclatura descritiva e semântica (ex: `test_get_all_tasks_filters_by_high_priority_successfully`). O código deve ser modular, limpo e aderente à PEP 8.
+Tom: Rigoroso, focado em integridade de dados e comportamento do ORM.
+Público: Engenheiros de Dados e Analistas de Automação de QA.
+Resposta: Criei o arquivo app/tests/test_task_repository.py com o código Python. Não inclua introduções ou explicações textuais.
+Restrições: 
+- **Sem Mocks de Banco:** Não utilize `MagicMock` ou `AsyncMock` para a sessão do banco. 
+- **Fixture de Banco Real:** O arquivo deve criar ou importar uma *fixture* do `pytest` que instancie um banco SQLite em memória (`sqlite:///:memory:`) limpo para cada teste (criando as tabelas com `metadata.create_all` no *setup* e destruindo no *teardown*).
+- **Inserção de Dados (Arrange):** Cada teste deve popular o banco de dados em memória com instâncias reais do modelo `Task` antes de executar a ação (Act) e asserção (Assert).
+```
