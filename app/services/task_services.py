@@ -2,7 +2,7 @@ import logging
 from fastapi import BackgroundTasks
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
-from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse
+from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse, TaskPriority
 from app.repositories.task_repository import TaskRepository
 from app.services.priority_advisor import PriorityAdvisorClient
 
@@ -42,7 +42,7 @@ class TaskService:
             TaskResponse: DTO da tarefa recém-criada.
         """
         # 1. Persiste a tarefa de forma rápida com a prioridade padrão
-        new_task = await self.repo.create_task(task_data, initial_priority="Média")
+        new_task = await self.repo.create_task(task_data, initial_priority=TaskPriority.MEDIA.value)
 
         # 2. Adiciona a rotina de IA em background para não travar a resposta da API
         background_tasks.add_task(
@@ -68,11 +68,11 @@ class TaskService:
             suggested_priority = await self.ai_client.suggest_priority(title, description)
             
             # Cria uma nova sessão e um novo repositório para esta tarefa em background
-            if suggested_priority != "Média":
+            if suggested_priority != TaskPriority.MEDIA:
                 async with self.session_maker() as session:
                     bg_repo = TaskRepository(session)
-                    await bg_repo.update_task_priority(task_id, suggested_priority)
-                logger.info(f"Prioridade da Tarefa {task_id} atualizada assincronamente para: {suggested_priority}")
+                    await bg_repo.update_task_priority(task_id, suggested_priority.value)
+                logger.info(f"Prioridade da Tarefa {task_id} atualizada assincronamente para: {suggested_priority.value}")
                 
         except Exception as e:
             # Fallback silencioso extra na orquestração para garantir segurança total

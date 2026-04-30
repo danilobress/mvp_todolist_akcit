@@ -1,4 +1,11 @@
+from typing import Literal
+from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field
+
+class TaskPriority(str, Enum):
+    ALTA = "Alta"
+    MEDIA = "Média"
+    BAIXA = "Baixa"
 
 class TaskCreate(BaseModel):
     """
@@ -16,7 +23,7 @@ class TaskUpdate(BaseModel):
     title: str | None = Field(default=None, max_length=100, description="Título principal da tarefa")
     description: str | None = Field(default=None, max_length=500, description="Descrição detalhada da tarefa")
     is_completed: bool | None = Field(default=None, description="Status de conclusão da tarefa")
-    priority: str | None = Field(default=None, description="Nível de prioridade (ex: Alta, Média, Baixa)")
+    priority: TaskPriority | None = Field(default=None, description="Nível de prioridade (ex: Alta, Média, Baixa)")
 
 class TaskResponse(BaseModel):
     """
@@ -26,6 +33,6 @@ class TaskResponse(BaseModel):
     title: str
     description: str | None
     is_completed: bool
-    priority: str
+    priority: TaskPriority
 
     model_config = ConfigDict(from_attributes=True)

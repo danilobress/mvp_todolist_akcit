@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from app.models.task import Base
-from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse
+from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse, TaskPriority
 from app.repositories.task_repository import TaskRepository
 from app.services.priority_advisor import PriorityAdvisorClient
 from app.services.task_services import TaskService
@@ -134,13 +134,14 @@ async def create_task(
 )
 async def list_tasks(
     is_completed: bool | None = Query(None, description="Filtrar pelo status de conclusão da tarefa"),
-    priority: str | None = Query(None, description="Filtrar por nível de prioridade (ex: Alta, Média, Baixa)"),
+    priority: TaskPriority | None = Query(None, description="Filtrar por nível de prioridade (ex: Alta, Média, Baixa)"),
     service: TaskService = Depends(get_task_service)
 ) -> list[TaskResponse]:
     """
     Recupera a lista de tarefas, permitindo a filtragem via query parameters.
     """
-    return await service.get_tasks(is_completed=is_completed, priority=priority)
+    priority_value = priority.value if priority else None
+    return await service.get_tasks(is_completed=is_completed, priority=priority_value)
 
 @app.get(
     "/tasks/{task_id}",

@@ -2,6 +2,8 @@ import os
 import logging
 import httpx
 
+from app.schemas.task import TaskPriority
+
 logger = logging.getLogger(__name__)
 
 class PriorityAdvisorClient:
@@ -24,7 +26,7 @@ class PriorityAdvisorClient:
         self.api_key = os.getenv("LLM_API_KEY", "")
         self.model = os.getenv("LLM_MODEL", "gpt-3.5-turbo")
 
-    async def suggest_priority(self, title: str, description: str | None) -> str:
+    async def suggest_priority(self, title: str, description: str | None) -> TaskPriority:
         """
         Envia os dados da tarefa para o LLM analisar e inferir a prioridade.
         Aplica fallback silencioso ("Média") em caso de indisponibilidade de rede, 
@@ -35,11 +37,11 @@ class PriorityAdvisorClient:
             description (str | None): Descrição detalhada (opcional).
             
         Returns:
-            str: "Alta", "Média" ou "Baixa".
+            TaskPriority: TaskPriority.ALTA, TaskPriority.MEDIA ou TaskPriority.BAIXA.
         """
         if not self.api_key:
-            logger.warning("LLM_API_KEY não configurada. Aplicando fallback silencioso 'Média'.")
-            return "Média"
+            logger.warning("LLM_API_KEY não configurada. Aplicando fallback silencioso '{TaskPriority.MEDIA.value}'.")
+            return TaskPriority.MEDIA
 
         # System prompt rigoroso focado em retornar apenas as palavras permitidas
         system_prompt = (
@@ -85,24 +87,24 @@ class PriorityAdvisorClient:
             # Limpeza profunda contra alucinações (espaços, pontos, quebras de linha e case)
             clean_answer = raw_answer.strip().strip('.').capitalize()
             
-            valid_priorities = {"Alta", "Média", "Baixa"}
+            valid_priorities = {p.value for p in TaskPriority}
             
             if clean_answer in valid_priorities:
-                return clean_answer
+                return TaskPriority(clean_answer)
             else:
-                logger.warning(f"LLM alucinou ou retornou valor inválido: '{raw_answer}'. Fallback para 'Média'.")
-                return "Média"
+                logger.warning(f"LLM alucinou ou retornou valor inválido: '{raw_answer}'. Fallback para '{TaskPriority.MEDIA.value}'.")
+                return TaskPriority.MEDIA
 
         except httpx.TimeoutException as e:
             logger.warning(f"Timeout ao conectar no LLM ({e}). Fallback silencioso para 'Média'.")
-            return "Média"
+            return TaskPriority.MEDIA
         except httpx.HTTPStatusError as e:
             # Captura erros como 401 Unauthorized ou 403 Forbidden
             logger.warning(f"Erro HTTP do LLM ({e.response.status_code}). Fallback silencioso para 'Média'.")
-            return "Média"
+            return TaskPriority.MEDIA
         except httpx.RequestError as e:
             logger.warning(f"Falha de rede ao acessar LLM ({e}). Fallback silencioso para 'Média'.")
-            return "Média"
+            return TaskPriority.MEDIA
         except Exception as e:
             logger.error(f"Erro inesperado no PriorityAdvisor ({e}). Fallback silencioso para 'Média'.")
-            return "Média"
+            return TaskPriority.MEDIA
