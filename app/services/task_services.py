@@ -1,7 +1,7 @@
 import logging
 from fastapi import BackgroundTasks
+from typing import Callable, AsyncContextManager
 
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from app.schemas.task import TaskCreate, TaskUpdate, TaskResponse, TaskPriority
 from app.repositories.task_repository import TaskRepository
 from app.services.priority_advisor import PriorityAdvisorClient
@@ -15,18 +15,18 @@ class TaskService:
     Retorna estritamente Pydantic DTOs e não lida com requisições HTTP do Controller.
     """
 
-    def __init__(self, repo: TaskRepository, ai_client: PriorityAdvisorClient, session_maker: async_sessionmaker[AsyncSession]):
+    def __init__(self, repo: TaskRepository, ai_client: PriorityAdvisorClient, bg_repo_factory: Callable[[], AsyncContextManager[TaskRepository]]):
         """
         Recebe o Repositório e o Cliente IA via Injeção de Dependência (DI).
         
         Args:
             repo (TaskRepository): Instância do repositório para persistência.
             ai_client (PriorityAdvisorClient): Cliente para sugerir prioridades usando IA.
-            session_maker (async_sessionmaker[AsyncSession]): Fábrica de sessões do SQLAlchemy.
+            bg_repo_factory (Callable[[], AsyncContextManager[TaskRepository]]): Fábrica assíncrona para instanciar repositórios em background.
         """
         self.repo = repo
         self.ai_client = ai_client
-        self.session_maker = session_maker
+        self.bg_repo_factory = bg_repo_factory
 
     async def create_task(self, task_data: TaskCreate, background_tasks: BackgroundTasks) -> TaskResponse:
         """
@@ -69,8 +69,7 @@ class TaskService:
             
             # Cria uma nova sessão e um novo repositório para esta tarefa em background
             if suggested_priority != TaskPriority.MEDIA:
-                async with self.session_maker() as session:
-                    bg_repo = TaskRepository(session)
+                async with self.bg_repo_factory() as bg_repo:
                     await bg_repo.update_task_priority(task_id, suggested_priority.value)
                 logger.info(f"Prioridade da Tarefa {task_id} atualizada assincronamente para: {suggested_priority.value}")
                 

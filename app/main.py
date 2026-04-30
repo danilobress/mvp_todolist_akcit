@@ -84,7 +84,13 @@ def get_task_service(
 ) -> TaskService:
     """Injeta o TaskService com suas dependências: repositório, cliente de IA e a fábrica de sessões."""
     repository = TaskRepository(db)
-    return TaskService(repository, ai_client, async_session_maker)
+    
+    @asynccontextmanager
+    async def bg_repo_factory():
+        async with async_session_maker() as session:
+            yield TaskRepository(session)
+            
+    return TaskService(repository, ai_client, bg_repo_factory)
 
 # --- Endpoints ---
 

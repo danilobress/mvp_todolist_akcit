@@ -1,8 +1,8 @@
-import os
 import logging
 import httpx
 
 from app.schemas.task import TaskPriority
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +21,10 @@ class PriorityAdvisorClient:
             client (httpx.AsyncClient): Sessão HTTP assíncrona compartilhada.
         """
         self.client = client
-        # Carrega as configurações do ambiente sem chumbá-las no código
-        self.api_url = os.getenv("LLM_API_URL", "https://api.openai.com/v1/chat/completions")
-        self.api_key = os.getenv("LLM_API_KEY", "")
-        self.model = os.getenv("LLM_MODEL", "gpt-3.5-turbo")
+        # Carrega as configurações validadas pelo Pydantic Settings
+        self.api_url = settings.llm_api_url
+        self.api_key = settings.llm_api_key
+        self.model = settings.llm_model
 
     async def suggest_priority(self, title: str, description: str | None) -> TaskPriority:
         """
@@ -40,7 +40,7 @@ class PriorityAdvisorClient:
             TaskPriority: TaskPriority.ALTA, TaskPriority.MEDIA ou TaskPriority.BAIXA.
         """
         if not self.api_key:
-            logger.warning("LLM_API_KEY não configurada. Aplicando fallback silencioso '{TaskPriority.MEDIA.value}'.")
+            logger.warning(f"LLM_API_KEY não configurada. Aplicando fallback silencioso '{TaskPriority.MEDIA.value}'.")
             return TaskPriority.MEDIA
 
         # System prompt rigoroso focado em retornar apenas as palavras permitidas
@@ -61,8 +61,7 @@ class PriorityAdvisorClient:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_content}
             ],
-            "temperature": 0.0, # Reduz alucinação focando em previsibilidade
-            "max_tokens": 10
+            "temperature": 0.1 # Leve aumento para evitar travamento da IA no wrapper
         }
 
         headers = {
@@ -71,18 +70,24 @@ class PriorityAdvisorClient:
         }
 
         try:
-            # Timeout restrito de 2.0s para mitigar gargalos (RNF05)
+            # Aumentando levemente o timeout caso a IA precise pensar um pouco mais
             response = await self.client.post(
                 self.api_url, 
                 json=payload, 
                 headers=headers, 
-                timeout=2.0
+                timeout=5.0
             )
             response.raise_for_status()
             
             data = response.json()
-            # Extração defensiva considerando a estrutura de retorno comum (OpenAI-like)
-            raw_answer = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            
+            # Garantindo que extrairemos a string mesmo se a estrutura mudar levemente
+            try:
+                raw_answer = data["choices"][0]["message"]["content"]
+                if raw_answer is None:
+                    raw_answer = ""
+            except (KeyError, IndexError):
+                raw_answer = ""
             
             # Limpeza profunda contra alucinações (espaços, pontos, quebras de linha e case)
             clean_answer = raw_answer.strip().strip('.').capitalize()
@@ -92,19 +97,19 @@ class PriorityAdvisorClient:
             if clean_answer in valid_priorities:
                 return TaskPriority(clean_answer)
             else:
-                logger.warning(f"LLM alucinou ou retornou valor inválido: '{raw_answer}'. Fallback para '{TaskPriority.MEDIA.value}'.")
+                logger.warning(f"LLM não retornou a prioridade esperada.\nConteúdo limpo: '{clean_answer}'\nResposta completa da API: {data}\nFallback para '{TaskPriority.MEDIA.value}'.")
                 return TaskPriority.MEDIA
 
         except httpx.TimeoutException as e:
-            logger.warning(f"Timeout ao conectar no LLM ({e}). Fallback silencioso para 'Média'.")
+            logger.warning(f"Timeout ao conectar no LLM ({e}). Fallback silencioso para '{TaskPriority.MEDIA.value}'.")
             return TaskPriority.MEDIA
         except httpx.HTTPStatusError as e:
             # Captura erros como 401 Unauthorized ou 403 Forbidden
-            logger.warning(f"Erro HTTP do LLM ({e.response.status_code}). Fallback silencioso para 'Média'.")
+            logger.warning(f"Erro HTTP do LLM ({e.response.status_code}). Fallback silencioso para '{TaskPriority.MEDIA.value}'.")
             return TaskPriority.MEDIA
         except httpx.RequestError as e:
-            logger.warning(f"Falha de rede ao acessar LLM ({e}). Fallback silencioso para 'Média'.")
+            logger.warning(f"Falha de rede ao acessar LLM ({e}). Fallback silencioso para '{TaskPriority.MEDIA.value}'.")
             return TaskPriority.MEDIA
         except Exception as e:
-            logger.error(f"Erro inesperado no PriorityAdvisor ({e}). Fallback silencioso para 'Média'.")
+            logger.error(f"Erro inesperado no PriorityAdvisor ({e}). Fallback silencioso para '{TaskPriority.MEDIA.value}'.")
             return TaskPriority.MEDIA
