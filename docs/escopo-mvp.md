@@ -9,7 +9,7 @@ O sistema deve expor operações para a entidade `Task`.
 | ID | Funcionalidade | Descrição e Comportamento Esperado |
 | :--- | :--- | :--- |
 | **RF01** | Criar Tarefa | O usuário deve poder criar uma tarefa fornecendo `title` (obrigatório) e `description` (opcional). |
-| **RF02** | Sugestão de Prioridade (IA) | Durante a criação (RF01), se o usuário não enviar explicitamente a `priority`, o sistema deve atribuir uma prioridade padrão ("Média") e invocar o componente **PriorityAdvisor (AI)** em uma rotina de *background task* para atualizar o nível de prioridade assincronamente. Em caso de falha na IA, o sistema deve aplicar o *fallback* de forma silenciosa, mantendo a prioridade "Média" original. |
+| **RF02** | Sugestão de Prioridade (IA) | Durante a criação (RF01), o sistema deve atribuir uma prioridade padrão ("Média") e invocar o componente **PriorityAdvisor (AI)** em uma rotina de *background task* para atualizar o nível de prioridade assincronamente. Em caso de falha na IA, o sistema deve aplicar o *fallback* de forma silenciosa, mantendo a prioridade "Média" original. |
 | **RF03** | Listar Tarefas | O sistema deve retornar uma lista de todas as tarefas cadastradas. |
 | **RF04** | Filtrar Tarefas | A listagem (RF03) deve permitir filtros opcionais via *query parameters*: por **status de conclusão** (`is_completed`: booleano) e por **nível de prioridade** (`priority`: string). |
 | **RF05** | Obter Tarefa Específica | O usuário deve poder buscar os detalhes de uma única tarefa através do seu identificador único (`task_id`). |
@@ -26,7 +26,7 @@ O sistema deve expor operações para a entidade `Task`.
   * `pytest-asyncio` para lidar com rotinas assíncronas (FastAPI e IA).
   * Sobrescrita de dependência (Dependency Overrides) para rodar testes integrados em um banco SQLite temporário em memória, utilizando obrigatoriamente `poolclass=StaticPool` no SQLAlchemy para evitar conflitos de escopo transacional.
   * O pacote `respx` associado ao `httpx` para isolar e "mockar" as requisições de rede externas feitas pelo PriorityAdvisor, garantindo que a suíte de testes nunca bata na rede real.
-* **RNF05 - Resiliência de Integração:** O cliente HTTP (`httpx`) responsável por consumir o PriorityAdvisor (IA) deve implementar um *timeout* restrito (ex: 1 a 2 segundos) e garantir o tratamento (*catch*) de todas as exceções de rede para prevenir a degradação de desempenho da API.
+* **RNF05 - Resiliência de Integração:** O cliente HTTP (`httpx`) responsável por consumir o PriorityAdvisor (IA) deve implementar um *timeout* restrito (ex: 5 segundos) e garantir o tratamento (*catch*) de todas as exceções de rede para prevenir a degradação de desempenho da API.
 
 ## 4. Fora de Escopo (Out of Scope)
 Para garantir o cumprimento do prazo de 30 horas, os seguintes itens estão explicitamente **excluídos** da entrega deste MVP:

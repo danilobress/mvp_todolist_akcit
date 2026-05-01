@@ -16,7 +16,10 @@ engine = create_async_engine(
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
 )
-TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
+TestingSessionLocal = async_sessionmaker(
+    autocommit=False, autoflush=False, bind=engine, class_=AsyncSession
+)
+
 
 @pytest_asyncio.fixture(autouse=True)
 async def setup_database():
@@ -27,16 +30,19 @@ async def setup_database():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
+
 @pytest_asyncio.fixture
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
     """Fornece uma sessão assíncrona real conectada ao SQLite em memória."""
     async with TestingSessionLocal() as session:
         yield session
 
+
 @pytest.fixture
 def repository(db_session: AsyncSession) -> TaskRepository:
     """Injeta a sessão de banco no repositório a ser testado."""
     return TaskRepository(db_session)
+
 
 @pytest.mark.asyncio
 async def test_create_task_persists_data_successfully(repository: TaskRepository):
@@ -44,7 +50,9 @@ async def test_create_task_persists_data_successfully(repository: TaskRepository
     task_in = TaskCreate(title="Test Task", description="Testing creation")
 
     # Act
-    task_out = await repository.create_task(task_in, initial_priority=TaskPriority.ALTA.value)
+    task_out = await repository.create_task(
+        task_in, initial_priority=TaskPriority.ALTA.value
+    )
 
     # Assert
     assert task_out.id is not None
@@ -53,8 +61,11 @@ async def test_create_task_persists_data_successfully(repository: TaskRepository
     assert task_out.is_completed is False
     assert task_out.priority == TaskPriority.ALTA
 
+
 @pytest.mark.asyncio
-async def test_get_task_returns_correct_record(repository: TaskRepository, db_session: AsyncSession):
+async def test_get_task_returns_correct_record(
+    repository: TaskRepository, db_session: AsyncSession
+):
     # Arrange
     task_model = Task(title="Search Target", priority=TaskPriority.MEDIA.value)
     db_session.add(task_model)
@@ -69,6 +80,7 @@ async def test_get_task_returns_correct_record(repository: TaskRepository, db_se
     assert task_out.id == task_model.id
     assert task_out.title == "Search Target"
 
+
 @pytest.mark.asyncio
 async def test_get_task_returns_none_when_id_not_found(repository: TaskRepository):
     # Act
@@ -77,13 +89,18 @@ async def test_get_task_returns_none_when_id_not_found(repository: TaskRepositor
     # Assert
     assert task_out is None
 
+
 @pytest.mark.asyncio
-async def test_get_tasks_without_filters_returns_all_records(repository: TaskRepository, db_session: AsyncSession):
+async def test_get_tasks_without_filters_returns_all_records(
+    repository: TaskRepository, db_session: AsyncSession
+):
     # Arrange
-    db_session.add_all([
-        Task(title="Task 1", priority=TaskPriority.MEDIA.value),
-        Task(title="Task 2", priority=TaskPriority.ALTA.value)
-    ])
+    db_session.add_all(
+        [
+            Task(title="Task 1", priority=TaskPriority.MEDIA.value),
+            Task(title="Task 2", priority=TaskPriority.ALTA.value),
+        ]
+    )
     await db_session.commit()
 
     # Act
@@ -92,14 +109,19 @@ async def test_get_tasks_without_filters_returns_all_records(repository: TaskRep
     # Assert
     assert len(tasks) == 2
 
+
 @pytest.mark.asyncio
-async def test_get_tasks_filters_by_is_completed_successfully(repository: TaskRepository, db_session: AsyncSession):
+async def test_get_tasks_filters_by_is_completed_successfully(
+    repository: TaskRepository, db_session: AsyncSession
+):
     # Arrange
-    db_session.add_all([
-        Task(title="Pending", is_completed=False),
-        Task(title="Done 1", is_completed=True),
-        Task(title="Done 2", is_completed=True)
-    ])
+    db_session.add_all(
+        [
+            Task(title="Pending", is_completed=False),
+            Task(title="Done 1", is_completed=True),
+            Task(title="Done 2", is_completed=True),
+        ]
+    )
     await db_session.commit()
 
     # Act
@@ -111,14 +133,19 @@ async def test_get_tasks_filters_by_is_completed_successfully(repository: TaskRe
     assert len(pending_tasks) == 1
     assert all(t.is_completed is True for t in completed_tasks)
 
+
 @pytest.mark.asyncio
-async def test_get_tasks_filters_by_priority_successfully(repository: TaskRepository, db_session: AsyncSession):
+async def test_get_tasks_filters_by_priority_successfully(
+    repository: TaskRepository, db_session: AsyncSession
+):
     # Arrange
-    db_session.add_all([
-        Task(title="P1", priority=TaskPriority.ALTA.value),
-        Task(title="P2", priority=TaskPriority.BAIXA.value),
-        Task(title="P3", priority=TaskPriority.ALTA.value)
-    ])
+    db_session.add_all(
+        [
+            Task(title="P1", priority=TaskPriority.ALTA.value),
+            Task(title="P2", priority=TaskPriority.BAIXA.value),
+            Task(title="P3", priority=TaskPriority.ALTA.value),
+        ]
+    )
     await db_session.commit()
 
     # Act
@@ -128,25 +155,37 @@ async def test_get_tasks_filters_by_priority_successfully(repository: TaskReposi
     assert len(high_priority_tasks) == 2
     assert all(t.priority == TaskPriority.ALTA for t in high_priority_tasks)
 
+
 @pytest.mark.asyncio
-async def test_get_tasks_filters_combined_is_completed_and_priority(repository: TaskRepository, db_session: AsyncSession):
+async def test_get_tasks_filters_combined_is_completed_and_priority(
+    repository: TaskRepository, db_session: AsyncSession
+):
     # Arrange
-    db_session.add_all([
-        Task(title="Target", is_completed=True, priority=TaskPriority.BAIXA.value),
-        Task(title="Noise 1", is_completed=False, priority=TaskPriority.BAIXA.value),
-        Task(title="Noise 2", is_completed=True, priority=TaskPriority.ALTA.value)
-    ])
+    db_session.add_all(
+        [
+            Task(title="Target", is_completed=True, priority=TaskPriority.BAIXA.value),
+            Task(
+                title="Noise 1", is_completed=False, priority=TaskPriority.BAIXA.value
+            ),
+            Task(title="Noise 2", is_completed=True, priority=TaskPriority.ALTA.value),
+        ]
+    )
     await db_session.commit()
 
     # Act
-    tasks = await repository.get_tasks(is_completed=True, priority=TaskPriority.BAIXA.value)
+    tasks = await repository.get_tasks(
+        is_completed=True, priority=TaskPriority.BAIXA.value
+    )
 
     # Assert
     assert len(tasks) == 1
     assert tasks[0].title == "Target"
 
+
 @pytest.mark.asyncio
-async def test_update_task_modifies_data_successfully(repository: TaskRepository, db_session: AsyncSession):
+async def test_update_task_modifies_data_successfully(
+    repository: TaskRepository, db_session: AsyncSession
+):
     # Arrange
     task_model = Task(title="Old Title", is_completed=False)
     db_session.add(task_model)
@@ -168,8 +207,11 @@ async def test_update_task_modifies_data_successfully(repository: TaskRepository
     assert result is not None
     assert result.title == "New Title"
 
+
 @pytest.mark.asyncio
-async def test_update_task_priority_modifies_priority_directly(repository: TaskRepository, db_session: AsyncSession):
+async def test_update_task_priority_modifies_priority_directly(
+    repository: TaskRepository, db_session: AsyncSession
+):
     # Arrange
     task_model = Task(title="Test", priority=TaskPriority.BAIXA.value)
     db_session.add(task_model)
@@ -182,13 +224,16 @@ async def test_update_task_priority_modifies_priority_directly(repository: TaskR
 
     # Assert
     # Clears session to force a fresh DB read
-    db_session.expunge_all() 
+    db_session.expunge_all()
     result = await db_session.get(Task, task_id)
     assert result is not None
     assert result.priority == TaskPriority.ALTA.value
 
+
 @pytest.mark.asyncio
-async def test_delete_task_removes_record_from_db(repository: TaskRepository, db_session: AsyncSession):
+async def test_delete_task_removes_record_from_db(
+    repository: TaskRepository, db_session: AsyncSession
+):
     # Arrange
     task_model = Task(title="To be deleted")
     db_session.add(task_model)
@@ -202,6 +247,7 @@ async def test_delete_task_removes_record_from_db(repository: TaskRepository, db
     assert success is True
     result = await db_session.get(Task, task_model.id)
     assert result is None
+
 
 @pytest.mark.asyncio
 async def test_delete_task_returns_false_when_id_not_found(repository: TaskRepository):

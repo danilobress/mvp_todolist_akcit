@@ -21,7 +21,7 @@
   - **Critérios de Aceite:**
     - Retorno com HTTP status `201 Created` contendo o payload `TaskResponse`.
     - O Service atribui a prioridade padrão "Média" no instante da criação e agenda o PriorityAdvisor via `FastAPI BackgroundTasks` se a prioridade não for informada no input.
-    - O cliente `httpx` deve ter limites de *timeout* estritos (1 a 2 segundos) e prever blocos `try/except` para falhas de rede.
+    - O cliente `httpx` deve ter limites de *timeout* estritos (ex: 5 segundos) e prever blocos `try/except` para falhas de rede.
     - Persistência delegada e isolada rigorosamente ao `TaskRepository`.
 
 - [ ] 1.4 **Endpoint: Listagem de Tarefas (GET /tasks)**
@@ -39,7 +39,7 @@
     - Retorno com HTTP status `404 Not Found` caso o ID informado não corresponda a nenhum registro no banco.
 
 - [ ] 1.6 **Endpoint: Atualização de Tarefas (PATCH /tasks/{task_id})**
-  - **Descrição:** Rota para modificar atributos de uma tarefa preexistente.
+  - **Descrição:** Rota para modificar parcialmente atributos de uma tarefa preexistente (título, descrição, prioridade ou conclusão).
   - **Critérios de Aceite:**
     - Validação completa do payload via esquema `TaskUpdate`, com HTTP status `422 Unprocessable Entity` para anomalias de entrada.
     - Retorno com HTTP status `200 OK` contendo a representação atualizada da entidade em caso de sucesso.
