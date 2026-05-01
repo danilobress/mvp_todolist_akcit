@@ -41,8 +41,8 @@ Siga os passos abaixo para configurar o ambiente local do zero em menos de 2 min
 ### 1. Pré-requisitos e Ambiente Virtual
 Clone o repositório e crie o seu ambiente virtual Python (`.venv`):
 ```bash
-git clone <url-do-repositorio>
-cd gerenciador_tarefas
+git clone https://github.com/danilobress/mvp_todolist_akcit.git
+cd mvp_todolist_akcit
 
 # Windows
 python -m venv .venv

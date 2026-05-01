@@ -1,5 +1,5 @@
 [project]
-name = "todo-api"
+name = "mvp-todolist-akcit"
 version = "1.0.0"
 description = "Micro-API de Gerenciamento de Tarefas (MVP)"
 license = {text = "MIT"}
