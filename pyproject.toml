@@ -2,6 +2,7 @@
 name = "todo-api"
 version = "1.0.0"
 description = "Micro-API de Gerenciamento de Tarefas (MVP)"
+license = {text = "MIT"}
 authors = [
     {name = "Danilo Bressane"}
 ]

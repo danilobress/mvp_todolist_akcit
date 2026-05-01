@@ -12,6 +12,7 @@ API RESTful minimalista e resiliente para gerenciamento de tarefas (To-Do List),
 * [Testes e Qualidade (QA)](#-testes-e-qualidade-qa)
 * [Roadmap de Releases](#-roadmap-de-releases)
 * [Fora de Escopo](#-fora-de-escopo)
+* [Licença](#-licença)
 
 ---
 
@@ -209,7 +210,7 @@ Para alinhar expectativas e focar estritamente nos objetivos do MVP, os seguinte
 
 ## 🤖 A Experiência de Construção com Inteligência Artificial
 
-A construção deste MVP utilizou ferramentas de GenAI como aceleradores de produtividade. A abordagem adotada substitui a codificação puramente manual pela orquestração inteligente de prompts e curadoria de código. As sugestão da IA foram revisadas de forma crítica vom validação humana, garantindo que a lógica de negócios e as decisões de arquitetura tivessem abordagem humana, e não delegadas 100% à máquina.
+A construção deste MVP utilizou o **Google Gemini** como a inteligência central (GenAI) para acelerar a produtividade. A abordagem adotada substituiu a codificação puramente manual pela orquestração inteligente de prompts e curadoria de código. Todas as sugestões da IA foram revisadas de forma crítica com validação humana, garantindo que a lógica de negócios e as decisões de arquitetura tivessem uma abordagem humana e profissional, e não delegadas 100% à máquina.
 
 ### Pontos Positivos e Ganhos de Produtividade
 * **Resolução de Problemas Complexos:** A IA foi fundamental na identificação e correção de problemas difíceis, como falhas de conexão de rede com a API da própria LLM externa, orientando no *debug* até chegarmos na estabilidade.
@@ -234,3 +235,9 @@ A construção deste MVP utilizou ferramentas de GenAI como aceleradores de prod
 * **Corrupção de Dados em Testes (Isolamento):** Ao construir a suíte de testes, o risco dos testes automatizados sujarem o banco real do desenvolvedor foi mitigado pela implementação de `dependency overrides` com um banco em memória (`sqlite:///:memory:`).
 * **Exaustão de Recursos de Rede (Performance):** A IA sugeriu e implementou o gerenciamento do HTTP Client (`httpx.AsyncClient`) atrelado ao ciclo de vida (Lifespan) do FastAPI. Isso evitou vazamento e exaustão de conexões (sockets).
 * **Indisponibilidade da IA Externa (Resiliência):** O risco do sistema ficar fora do ar por lentidão ou queda no serviço da Google foi antecipado e mitigado pela lógica de _fallback local_ silencioso.
+
+---
+
+## 📄 Licença
+
+Este projeto está sob a licença [MIT](LICENSE). Consulte o arquivo para obter mais detalhes.
